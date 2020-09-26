@@ -1,8 +1,8 @@
 //
 //  main.cpp
-//  Assignment6
+//  Assignment 5
 //
-//  Created by Minul Haque on 5/8/20.
+//  Created by Minul Haque on 4/22/20.
 //  Copyright © 2020 Minul Haque. All rights reserved.
 //
 
@@ -25,17 +25,17 @@ double RandomDouble(double,double);
 
 int main() {
     
+    
     RandomInitialise(1807,9373);
     int N = 128;
     
-    double J = 0.1;
-    while (J <= 0.85) {
-        // Generate 2D lattice N x N
-        int lattice[N][N];
+    for (double J = 0.1; J < 0.85; J+=0.05) {
+        // Generate 2D lattice 128 x 128
+        float lattice[N][N];
         for (int i = 0; i < N; i ++) {
             for(int j = 0; j < N; j++) {
                 
-                // Generate spins at random with 0.65 positive bias
+                // Generate spins at random with 0.65 bias
                  if (RandomUniform() < 0.65) {
                      lattice[i][j] = 1;
                  } else {
@@ -44,111 +44,80 @@ int main() {
             }
         }
         
-        
-        double preAvgE = 0;
-        double preAvgEsq = 0;
-        //double AvgE = 0;
-        
-        int i, j, k, l;
-        double Si1, Si2;
-        double Sj1, Sj2, Sl1, Sr1, Stop1, Sbot1, Sl2, Sr2, Stop2, Sbot2;
-        double Hi1, Hi2, deltaH;
+        // Multiple Monte Carlo Steps
+        int MCStep = 0;
+        int preAvgM = 0;
+        int preAvgMSq = 0;
+        double Chi = 0;
+        while (MCStep < 5000) {
+                
+            // Choose a random spin site and attempt flip - Monte Carlo Move
+            int move = 0;
+            double HiSum = 0;
+            while (move < N*N) { // one Monte Carlo Step = N*N montecarlo moves
+                
+                int i = RandomInt(0,127);
+                int j = RandomInt(0,127);
+                
+                // sites with periodic boundary conditions
+                float Si = lattice[i][j];
+                int Sl = lattice[i][(j - 1 + N) % N];
+                int Sr = lattice[i][(j + 1 + N) % N];
+                int Stop = lattice[(i - 1 + N) % N][j];
+                int Sbot = lattice[(i + 1 + N) % N][j];
 
-        // # MC Steps of N*N Moves
-        int MCSteps = 1;
-        while (MCSteps <= 100000) {
-            double HiSum = 0.0;
-            int moves = 1;
-            while (moves <= N*N) {
                 
-                // Choose two random sites
-                i = RandomInt(0, N-1);
-                j = RandomInt(0, N-1);
-                k = RandomInt(0, N-1);
-                l = RandomInt(0, N-1);
-                
-                Si1 = lattice[i][j];
-                Si2 = lattice[k][l];
-                
-                // Periodic Boundary Conditions for both sites
-                Sl1 = lattice[i][(j - 1 + N) % N];
-                Sr1 = lattice[i][(j + 1 + N) % N];
-                Stop1 = lattice[(i - 1 + N) % N][j];
-                Sbot1 = lattice[(i + 1 + N) % N][j];
-                
-                Sl2 = lattice[k][(l - 1 + N) % N];
-                Sr2 = lattice[k][(l + 1 + N) % N];
-                Stop2 = lattice[(k - 1 + N) % N][l];
-                Sbot2 = lattice[(k + 1 + N) % N][l];
-                
-                Sj1 = Sl1 + Sr1 + Stop1 + Sbot1;
-                Sj2 = Sl2 + Sr2 + Stop2 + Sbot2;
-                
-                Hi1 = -1.0 * J * Si1 * Sj1;
-                Hi2 = -1.0 * J * Si2 * Sj2;
-                
-                deltaH = 2 * J * (Si1 * Sj1 + Si2 * Sj2);
-                
-                // Attempt Exchange if different
-                if (lattice[i][j] != lattice[k][l]) {
-                    if (deltaH < 0) {
-                        lattice[i][j] = Si2;
-                        lattice[k][l] = Si1;
-                    } else if (RandomUniform() < exp(-1*deltaH)) {
-                        lattice[i][j] = Si2;
-                        lattice[k][l] = Si1;
+                double Hi = -1 * J * Si * (Sl + Sr + Stop + Sbot);
+                double deltaH = 2 * J * Si * (Sl + Sr + Stop + Sbot);
+               //cout << deltaH << "\t" << flush;
+                if (deltaH < 0) {
+                    lattice[i][j] = -1 * Si;
+                } else {
+                    if (RandomUniform() < exp(-1*deltaH)) {
+                        lattice[i][j] = -1 * Si;
                     }
                 }
-                moves++;
-            }
+                
+                HiSum += Hi;
+                move++;
+                
+            } // Ends N*N moves
             
-            // Sum the energies of each site per MCStep
-            if (MCSteps >= 20000) {
+            MCStep++;
+            HiSum = abs(HiSum);
+            //cout << MCStep << "\t" << HiSum << endl; // Energy vs McStep
+            
+            // M for each Montecarlo Step
+            int M = 0;
             for (int i = 0; i < N; i++) {
                 for (int j = 0; j < N; j++) {
-                                                                                    
-                    Si1 = lattice[i][j];
-                    Sl1 = lattice[i][(j - 1 + N) % N];
-                    Sr1 = lattice[i][(j + 1 + N) % N];
-                    Stop1 = lattice[(i - 1 + N) % N][j];
-                    Sbot1 = lattice[(i + 1 + N) % N][j];
-                                                                                    
-                    Sj1 = Sl1 + Sr1 + Stop1 + Sbot1;
-
-                    Hi1 = -1.0 * J * Si1 * Sj1;
-                                                                                    
-                    HiSum += Hi1;
+                    M += lattice[i][j];
                 }
             }
             
-            cout << MCSteps << "\t" << HiSum << endl;
-            
-            preAvgE += HiSum;
-            preAvgEsq += pow(HiSum, 2);
+            preAvgM += M;
+            preAvgMSq += (M * M);
+        } // Ends MonteCarlo Step
+        
+        // Susceptibility Calculations
+        double avgM = preAvgM / MCStep;
+        double avgMSq = preAvgMSq / MCStep;
+        Chi = (avgMSq - (avgM * avgM));
+        // cout << J << "\t" << Chi << endl;
+        // cout << J << "\t" << avgM << endl;
+        
+      /*
+       // Final Morphology for each J
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                cout << lattice[i][j] << "\t" << flush;
             }
-            MCSteps++;
+            cout << endl;
         }
-        
-        double AvgE = preAvgE / 80000; // average energy
-        double avgEsq = pow(AvgE, 2);
-        double EsqAvg = preAvgEsq / 80000;
-        double Cv = (EsqAvg - avgEsq);
-       // cout << J << "\t" << Cv << endl;
-        
-        /*
-        // Final Morphology for each J
-         for (int i = 0; i < N; i++) {
-             for (int j = 0; j < N; j++) {
-                 cout << lattice[i][j] << "\t" << flush;
-             }
-             cout << endl;
-         }
-         cout << endl;
-         cout << endl; */
-        J+=0.1;
+        cout << endl;
+        cout << endl; */
     }
 }
-
 
 #define FALSE 0
 #define TRUE 1
